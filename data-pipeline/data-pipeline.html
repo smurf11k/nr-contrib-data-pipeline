@@ -1,0 +1,304 @@
+<!-- Read the docs: https://nodered.org/docs/creating-nodes/edit-dialog -->
+
+<script type="text/html" data-template-name="data-pipeline">
+
+  <!-- STEPS LIST -->
+  <div class="form-row">
+    <label><i class="fa fa-list"></i> Pipeline steps</label>
+    <div id="pipeline-steps-container" style="margin-top:8px;">
+      <ol id="pipeline-steps-list" style="list-style:none; padding:0; margin:0;"></ol>
+    </div>
+    <button type="button" id="pipeline-add-step" class="red-ui-button" style="margin-top:8px;">
+      <i class="fa fa-plus"></i> Add step
+    </button>
+  </div>
+
+  <div class="form-tips" style="font-size:83%; margin-top:10px;">
+    Steps are executed <b>top to bottom</b>. Each step receives the output of the previous one.
+    Input must be an <code>array</code>. Output 1 = result, Output 2 = error.
+  </div>
+
+  <!-- NODE NAME -->
+  <div class="form-row" style="margin-top:12px;">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="data-pipeline" />
+  </div>
+
+  <!-- Hidden field to store serialized steps -->
+  <input type="hidden" id="node-input-steps" />
+
+</script>
+
+<!-- Help text shown in info panel and tooltip -->
+<script type="text/html" data-help-name="data-pipeline">
+  <p>Transform arrays using a visual pipeline of steps — no code required.</p>
+
+  <h3>Steps</h3>
+  <dl class="message-properties">
+    <dt>filter</dt>
+    <dd>Keep only items matching a condition. Supports operators: <code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>contains</code>, <code>exists</code>. Dot notation supported for nested fields.</dd>
+
+    <dt>map</dt>
+    <dd>Transform a field value using a JS expression. Use <code>value</code> to reference the current field value (e.g. <code>value * 1.2</code>). Optionally write result to a different field.</dd>
+
+    <dt>pick</dt>
+    <dd>Keep only specified fields in each item. Comma-separated list (e.g. <code>name, age, email</code>).</dd>
+
+    <dt>sort</dt>
+    <dd>Sort the array by a field. Choose ascending or descending order.</dd>
+
+    <dt>limit</dt>
+    <dd>Keep only the first N items.</dd>
+
+    <dt>flatten</dt>
+    <dd>Flatten one level of nested arrays. Optionally specify a field to extract and flatten from each item.</dd>
+  </dl>
+
+  <h3>Outputs</h3>
+  <ol class="node-ports">
+    <li><b>Output 1</b> — result array in <code>msg.payload</code></li>
+    <li><b>Output 2</b> — error: original payload + <code>msg.error</code> with description</li>
+  </ol>
+</script>
+
+<script type="text/javascript">
+(function () {
+
+    const ACCENT = "#E05C2A"
+    let dragSrc = null
+
+    function addDragHandlers(li, list) {
+        li.setAttribute("draggable", "true")
+        li.addEventListener("dragstart", function (e) {
+            dragSrc = li
+            li.style.opacity = "0.4"
+            e.dataTransfer.effectAllowed = "move"
+        })
+        li.addEventListener("dragend", function () {
+            li.style.opacity = "1"
+            list.querySelectorAll("li").forEach(el => el.style.background = "#f8f8f8")
+        })
+        li.addEventListener("dragover", function (e) {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = "move"
+            if (li !== dragSrc) li.style.background = "#fff3ee"
+        })
+        li.addEventListener("dragleave", function () {
+            li.style.background = "#f8f8f8"
+        })
+        li.addEventListener("drop", function (e) {
+            e.preventDefault()
+            if (dragSrc && dragSrc !== li) {
+                const allItems = [...list.querySelectorAll("li")]
+                const srcIdx = allItems.indexOf(dragSrc)
+                const tgtIdx = allItems.indexOf(li)
+                if (srcIdx < tgtIdx) list.insertBefore(dragSrc, li.nextSibling)
+                else list.insertBefore(dragSrc, li)
+                syncSteps()
+            }
+            li.style.background = "#f8f8f8"
+        })
+    }
+
+    // Step type definitions — what fields each step needs
+    const STEP_TYPES = {
+        filter: {
+            label: "filter",
+            icon: "fa-filter",
+            fields: [
+                { key: "field",  label: "Field",    type: "text",   placeholder: "e.g. user.age" },
+                { key: "op",     label: "Operator", type: "select",
+                  options: ["==","!=",">","<",">=","<=","contains","exists"] },
+                { key: "value",  label: "Value",    type: "text",   placeholder: "e.g. 18" },
+            ]
+        },
+        map: {
+            label: "map",
+            icon: "fa-exchange",
+            fields: [
+                { key: "field",       label: "Field",        type: "text", placeholder: "e.g. price" },
+                { key: "expression",  label: "Expression",   type: "text", placeholder: "e.g. value * 1.2" },
+                { key: "outputField", label: "Output field (optional)", type: "text", placeholder: "leave empty to overwrite" },
+            ]
+        },
+        pick: {
+            label: "pick",
+            icon: "fa-hand-o-up",
+            fields: [
+                { key: "fields", label: "Fields (comma-separated)", type: "text", placeholder: "e.g. name, age, email" },
+            ]
+        },
+        sort: {
+            label: "sort",
+            icon: "fa-sort",
+            fields: [
+                { key: "field", label: "Field", type: "text", placeholder: "e.g. age" },
+                { key: "order", label: "Order", type: "select", options: ["asc", "desc"] },
+            ]
+        },
+        limit: {
+            label: "limit",
+            icon: "fa-scissors",
+            fields: [
+                { key: "count", label: "Count", type: "text", placeholder: "e.g. 10" },
+            ]
+        },
+        flatten: {
+            label: "flatten",
+            icon: "fa-compress",
+            fields: [
+                { key: "field", label: "Field to flatten (optional)", type: "text", placeholder: "e.g. items" },
+            ]
+        },
+    }
+
+    // Render a single step row in the list
+    function renderStep(step, index) {
+        const list = document.getElementById("pipeline-steps-list")
+        const def = STEP_TYPES[step.type]
+        const li = document.createElement("li")
+        li.style.cssText = "background:#f8f8f8; border:1px solid #ddd; border-radius:4px; padding:8px 10px; margin-bottom:6px; cursor:grab;"
+        li.dataset.index = index
+
+        // Header row: drag handle + icon + label + delete
+        const header = document.createElement("div")
+        header.style.cssText = "display:flex; align-items:center; margin-bottom:6px;"
+        header.innerHTML = `
+            <i class="fa fa-bars" style="margin-right:8px; color:#aaa; cursor:grab;" title="Drag to reorder"></i>
+            <i class="fa ${def.icon}" style="margin-right:6px; color:${ACCENT};"></i>
+            <b style="flex:1; text-transform:uppercase; font-size:11px; color:${ACCENT};">${def.label}</b>
+            <button type="button" class="step-delete red-ui-button red-ui-button-small" title="Remove step">
+                <i class="fa fa-trash"></i>
+            </button>
+        `
+        li.appendChild(header)
+        addDragHandlers(li, list)
+
+        // Fields
+        def.fields.forEach(field => {
+            const row = document.createElement("div")
+            row.style.cssText = "display:flex; align-items:center; margin-bottom:4px; gap:6px;"
+
+            const label = document.createElement("label")
+            label.textContent = field.label
+            label.style.cssText = "min-width:120px; font-size:12px; margin:0;"
+
+            let input
+            if (field.type === "select") {
+                input = document.createElement("select")
+                input.style.cssText = "flex:1; font-size:12px;"
+                field.options.forEach(opt => {
+                    const o = document.createElement("option")
+                    o.value = opt
+                    o.textContent = opt
+                    if (step.params && step.params[field.key] === opt) o.selected = true
+                    input.appendChild(o)
+                })
+            } else {
+                input = document.createElement("input")
+                input.type = "text"
+                input.placeholder = field.placeholder || ""
+                input.style.cssText = "flex:1; font-size:12px;"
+                input.value = (step.params && step.params[field.key]) || ""
+            }
+
+            input.dataset.field = field.key
+            input.classList.add("step-param-input")
+            input.addEventListener("change", () => syncSteps())
+            input.addEventListener("keyup", () => syncSteps())
+
+            row.appendChild(label)
+            row.appendChild(input)
+            li.appendChild(row)
+        })
+
+        // Delete handler
+        header.querySelector(".step-delete").addEventListener("click", () => {
+            li.remove()
+            syncSteps()
+        })
+
+        return li
+    }
+
+    // Serialize all steps back into the hidden input
+    function syncSteps() {
+        const steps = []
+        document.querySelectorAll("#pipeline-steps-list li").forEach(li => {
+            const type = li.querySelector("b").textContent.toLowerCase()
+            const params = {}
+            li.querySelectorAll(".step-param-input").forEach(input => {
+                params[input.dataset.field] = input.value
+            })
+            steps.push({ type, params })
+        })
+        document.getElementById("node-input-steps").value = JSON.stringify(steps)
+    }
+
+    RED.nodes.registerType("data-pipeline", {
+        category: "function",
+        color: "#E05C2A",
+        defaults: {
+            name:  { value: "" },
+            steps: { value: "[]" },
+        },
+        inputs: 1,
+        outputs: 2,
+        outputLabels: ["result", "error"],
+        icon: "icon-min.svg",
+        label: function () {
+            return this.name || "data-pipeline"
+        },
+        labelStyle: function () {
+            return this.name ? "node_label_italic" : ""
+        },
+
+        oneditprepare: function () {
+            const list = document.getElementById("pipeline-steps-list")
+
+            // Load existing steps from saved config
+            let steps = []
+            try {
+                steps = JSON.parse(this.steps || "[]")
+            } catch (e) {
+                steps = []
+            }
+            steps.forEach((step, i) => list.appendChild(renderStep(step, i)))
+
+            // Add step button — shows a simple dropdown to pick type
+            document.getElementById("pipeline-add-step").addEventListener("click", () => {
+                // Build a small inline picker
+                const existing = document.getElementById("step-type-picker")
+                if (existing) { existing.remove(); return }
+
+                const picker = document.createElement("div")
+                picker.id = "step-type-picker"
+                picker.style.cssText = "margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;"
+
+                Object.keys(STEP_TYPES).forEach(type => {
+                    const btn = document.createElement("button")
+                    btn.type = "button"
+                    btn.className = "red-ui-button"
+                    btn.style.cssText = "font-size:11px;"
+                    btn.innerHTML = `<i class="fa ${STEP_TYPES[type].icon}"></i> ${type}`
+                    btn.addEventListener("click", () => {
+                        const newStep = { type, params: {} }
+                        list.appendChild(renderStep(newStep, list.children.length))
+                        syncSteps()
+                        picker.remove()
+                    })
+                    picker.appendChild(btn)
+                })
+
+                document.getElementById("pipeline-steps-container").appendChild(picker)
+            })
+        },
+
+        oneditsave: function () {
+            syncSteps()
+            this.steps = document.getElementById("node-input-steps").value
+        },
+    })
+
+}())
+</script>

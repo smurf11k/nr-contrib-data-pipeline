@@ -1,0 +1,33 @@
+{
+  "name": "nr-contrib-data-pipeline",
+  "version": "1.0.0",
+  "description": "Node-RED node for transforming arrays using a visual pipeline of steps (filter, map, pick, sort, limit, flatten) — no code required.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node-red": "^1.1.0"
+  },
+  "keywords": [
+    "node-red",
+    "pipeline",
+    "transform",
+    "filter",
+    "map",
+    "sort",
+    "data",
+    "array"
+  ],
+  "node-red": {
+    "version": ">=3",
+    "nodes": {
+      "data-pipeline": "data-pipeline/data-pipeline.js"
+    }
+  },
+  "engines": {
+    "node": ">=14.14"
+  },
+  "main": "data-pipeline/data-pipeline.js",
+  "license": "MIT"
+}

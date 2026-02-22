@@ -1,0 +1,536 @@
+[
+    {
+        "id": "715094ef3dcc89d8",
+        "type": "tab",
+        "label": "📊 Comparison",
+        "disabled": false,
+        "info": "Same result, 3 different approaches"
+    },
+    {
+        "id": "tab-tests",
+        "type": "tab",
+        "label": "🧪 Tests",
+        "disabled": false,
+        "info": "Basic usage examples for each step type"
+    },
+    {
+        "id": "1ea332b09a4f9f04",
+        "type": "comment",
+        "z": "715094ef3dcc89d8",
+        "name": "Task: cities with temp > 20 → pick city+temp → sort desc → top 5",
+        "info": "",
+        "x": 390,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "86962c99e277e363",
+        "type": "inject",
+        "z": "715094ef3dcc89d8",
+        "name": "🌍 Weather API data",
+        "repeat": "",
+        "once": false,
+        "payload": "[{\"city\":\"Kyiv\",\"temp\":22,\"humidity\":60,\"wind\":5},{\"city\":\"Lviv\",\"temp\":17,\"humidity\":72,\"wind\":8},{\"city\":\"Odesa\",\"temp\":28,\"humidity\":55,\"wind\":3},{\"city\":\"Kharkiv\",\"temp\":15,\"humidity\":80,\"wind\":12},{\"city\":\"Dnipro\",\"temp\":24,\"humidity\":50,\"wind\":6},{\"city\":\"Zaporizhzhia\",\"temp\":26,\"humidity\":48,\"wind\":4},{\"city\":\"Mykolaiv\",\"temp\":19,\"humidity\":65,\"wind\":7},{\"city\":\"Poltava\",\"temp\":21,\"humidity\":58,\"wind\":5},{\"city\":\"Vinnytsia\",\"temp\":18,\"humidity\":70,\"wind\":9},{\"city\":\"Cherkasy\",\"temp\":23,\"humidity\":62,\"wind\":6}]",
+        "payloadType": "json",
+        "x": 160,
+        "y": 100,
+        "wires": [
+            [
+                "016bb5658e9fa314",
+                "85d495d777e0f116",
+                "de60e96795ea43d4"
+            ]
+        ]
+    },
+    {
+        "id": "607aef74ea535892",
+        "type": "comment",
+        "z": "715094ef3dcc89d8",
+        "name": "✅ OPTION 1 — data-pipeline (1 node, no code)",
+        "info": "",
+        "x": 650,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "016bb5658e9fa314",
+        "type": "data-pipeline",
+        "z": "715094ef3dcc89d8",
+        "name": "filter → pick → sort → limit",
+        "steps": "[{\"type\":\"filter\",\"params\":{\"field\":\"temp\",\"op\":\">\",\"value\":\"20\"}},{\"type\":\"pick\",\"params\":{\"fields\":\"city, temp\"}},{\"type\":\"sort\",\"params\":{\"field\":\"temp\",\"order\":\"desc\"}},{\"type\":\"limit\",\"params\":{\"count\":\"5\"}}]",
+        "x": 580,
+        "y": 160,
+        "wires": [
+            [
+                "0e5ed2de2e6b1d28"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "0e5ed2de2e6b1d28",
+        "type": "debug",
+        "z": "715094ef3dcc89d8",
+        "name": "✅ result",
+        "active": true,
+        "tosidebar": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 810,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "a879ec8bbbabbe1a",
+        "type": "comment",
+        "z": "715094ef3dcc89d8",
+        "name": "⚠️ OPTION 2 — function node (requires JS knowledge)",
+        "info": "",
+        "x": 660,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "85d495d777e0f116",
+        "type": "function",
+        "z": "715094ef3dcc89d8",
+        "name": "filter+pick+sort+limit (JS)",
+        "func": "msg.payload = msg.payload\n    .filter(x => x.temp > 20)\n    .map(x => ({ city: x.city, temp: x.temp }))\n    .sort((a, b) => b.temp - a.temp)\n    .slice(0, 5)\nreturn msg;",
+        "outputs": 1,
+        "x": 580,
+        "y": 300,
+        "wires": [
+            [
+                "d8036fd9c2da5856"
+            ]
+        ]
+    },
+    {
+        "id": "d8036fd9c2da5856",
+        "type": "debug",
+        "z": "715094ef3dcc89d8",
+        "name": "⚠️ result",
+        "active": true,
+        "tosidebar": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 800,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "1b67cb98911690ca",
+        "type": "comment",
+        "z": "715094ef3dcc89d8",
+        "name": "❌ OPTION 3 — 6 chained nodes: split → switch → change → join → sort → limit",
+        "info": "",
+        "x": 610,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "de60e96795ea43d4",
+        "type": "split",
+        "z": "715094ef3dcc89d8",
+        "name": "split",
+        "splt": "\\n",
+        "spltType": "str",
+        "arraySplt": 1,
+        "arraySpltType": "len",
+        "stream": false,
+        "addname": "payload",
+        "property": "payload",
+        "x": 200,
+        "y": 460,
+        "wires": [
+            [
+                "8a646db160e025bd"
+            ]
+        ]
+    },
+    {
+        "id": "8a646db160e025bd",
+        "type": "switch",
+        "z": "715094ef3dcc89d8",
+        "name": "filter: temp > 20",
+        "property": "payload.temp",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "gt",
+                "v": "20",
+                "vt": "num"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 370,
+        "y": 460,
+        "wires": [
+            [
+                "1302061c3c4c65af"
+            ]
+        ]
+    },
+    {
+        "id": "1302061c3c4c65af",
+        "type": "change",
+        "z": "715094ef3dcc89d8",
+        "name": "pick: city + temp",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{\"city\": payload.city, \"temp\": payload.temp}",
+                "tot": "jsonata"
+            }
+        ],
+        "x": 550,
+        "y": 460,
+        "wires": [
+            [
+                "d7862242e2b36a03"
+            ]
+        ]
+    },
+    {
+        "id": "d7862242e2b36a03",
+        "type": "join",
+        "z": "715094ef3dcc89d8",
+        "name": "join",
+        "mode": "auto",
+        "build": "array",
+        "x": 710,
+        "y": 460,
+        "wires": [
+            [
+                "22e5af152eb25517"
+            ]
+        ]
+    },
+    {
+        "id": "22e5af152eb25517",
+        "type": "function",
+        "z": "715094ef3dcc89d8",
+        "name": "sort desc",
+        "func": "msg.payload = msg.payload.sort((a, b) => b.temp - a.temp)\nreturn msg;",
+        "outputs": 1,
+        "x": 855,
+        "y": 460,
+        "wires": [
+            [
+                "e0da349687af76a0"
+            ]
+        ]
+    },
+    {
+        "id": "e0da349687af76a0",
+        "type": "function",
+        "z": "715094ef3dcc89d8",
+        "name": "limit top 5",
+        "func": "msg.payload = msg.payload.slice(0, 5)\nreturn msg;",
+        "outputs": 1,
+        "x": 1000,
+        "y": 460,
+        "wires": [
+            [
+                "d53f5b90b5a0a103"
+            ]
+        ]
+    },
+    {
+        "id": "d53f5b90b5a0a103",
+        "type": "debug",
+        "z": "715094ef3dcc89d8",
+        "name": "❌ result",
+        "active": true,
+        "tosidebar": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1150,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "906e3deb9ce9f4c8",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "nr-contrib-data-pipeline": "1.0.0"
+        }
+    },
+    {
+        "id": "cmt-test1",
+        "type": "comment",
+        "z": "tab-tests",
+        "name": "TEST 1 — filter + sort + limit (weather data)",
+        "info": "",
+        "x": 210,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "inject-t1",
+        "type": "inject",
+        "z": "tab-tests",
+        "name": "City weather data",
+        "props": [
+            { "p": "payload" },
+            { "p": "topic", "vt": "str" }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "",
+        "topic": "",
+        "payload": "[{\"city\":\"Kyiv\",\"temp\":22,\"active\":true},{\"city\":\"Lviv\",\"temp\":17,\"active\":true},{\"city\":\"Odesa\",\"temp\":28,\"active\":true},{\"city\":\"Kharkiv\",\"temp\":15,\"active\":false},{\"city\":\"Dnipro\",\"temp\":24,\"active\":true}]",
+        "payloadType": "json",
+        "x": 160,
+        "y": 100,
+        "wires": [["pipeline-t1"]]
+    },
+    {
+        "id": "pipeline-t1",
+        "type": "data-pipeline",
+        "z": "tab-tests",
+        "name": "filter→sort→limit",
+        "steps": "[{\"type\":\"filter\",\"params\":{\"field\":\"temp\",\"op\":\">\",\"value\":\"18\"}},{\"type\":\"sort\",\"params\":{\"field\":\"temp\",\"order\":\"desc\"}},{\"type\":\"limit\",\"params\":{\"count\":\"2\"}}]",
+        "x": 380,
+        "y": 100,
+        "wires": [["debug-t1-ok"], ["debug-t1-err"]]
+    },
+    {
+        "id": "debug-t1-ok",
+        "type": "debug",
+        "z": "tab-tests",
+        "name": "✅ result",
+        "active": true,
+        "tosidebar": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 570,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "debug-t1-err",
+        "type": "debug",
+        "z": "tab-tests",
+        "name": "❌ error",
+        "active": true,
+        "tosidebar": true,
+        "complete": "error",
+        "targetType": "msg",
+        "x": 570,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "cmt-test2",
+        "type": "comment",
+        "z": "tab-tests",
+        "name": "TEST 2 — map (price +20%) + pick",
+        "info": "",
+        "x": 180,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "inject-t2",
+        "type": "inject",
+        "z": "tab-tests",
+        "name": "Product list",
+        "props": [
+            { "p": "payload" },
+            { "p": "topic", "vt": "str" }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "",
+        "topic": "",
+        "payload": "[{\"id\":1,\"name\":\"Coffee\",\"price\":45,\"category\":\"drinks\"},{\"id\":2,\"name\":\"Croissant\",\"price\":30,\"category\":\"food\"},{\"id\":3,\"name\":\"Juice\",\"price\":55,\"category\":\"drinks\"}]",
+        "payloadType": "json",
+        "x": 160,
+        "y": 260,
+        "wires": [["pipeline-t2"]]
+    },
+    {
+        "id": "pipeline-t2",
+        "type": "data-pipeline",
+        "z": "tab-tests",
+        "name": "map price +20% → pick",
+        "steps": "[{\"type\":\"map\",\"params\":{\"field\":\"price\",\"expression\":\"Math.round(value * 1.2)\",\"outputField\":\"\"}},{\"type\":\"pick\",\"params\":{\"fields\":\"name, price\"}}]",
+        "x": 390,
+        "y": 260,
+        "wires": [["debug-t2-ok"], ["debug-t2-err"]]
+    },
+    {
+        "id": "debug-t2-ok",
+        "type": "debug",
+        "z": "tab-tests",
+        "name": "✅ result",
+        "active": true,
+        "tosidebar": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 570,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "debug-t2-err",
+        "type": "debug",
+        "z": "tab-tests",
+        "name": "❌ error",
+        "active": true,
+        "tosidebar": true,
+        "complete": "error",
+        "targetType": "msg",
+        "x": 570,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "cmt-test3",
+        "type": "comment",
+        "z": "tab-tests",
+        "name": "TEST 3 — flatten nested arrays (post tags)",
+        "info": "",
+        "x": 200,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "inject-t3",
+        "type": "inject",
+        "z": "tab-tests",
+        "name": "Posts with tags",
+        "props": [
+            { "p": "payload" },
+            { "p": "topic", "vt": "str" }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "",
+        "topic": "",
+        "payload": "[{\"title\":\"Post A\",\"tags\":[\"js\",\"node-red\"]},{\"title\":\"Post B\",\"tags\":[\"python\",\"iot\"]},{\"title\":\"Post C\",\"tags\":[\"js\",\"api\"]}]",
+        "payloadType": "json",
+        "x": 160,
+        "y": 420,
+        "wires": [["pipeline-t3"]]
+    },
+    {
+        "id": "pipeline-t3",
+        "type": "data-pipeline",
+        "z": "tab-tests",
+        "name": "flatten tags",
+        "steps": "[{\"type\":\"flatten\",\"params\":{\"field\":\"tags\"}}]",
+        "x": 370,
+        "y": 420,
+        "wires": [["debug-t3-ok"], ["debug-t3-err"]]
+    },
+    {
+        "id": "debug-t3-ok",
+        "type": "debug",
+        "z": "tab-tests",
+        "name": "✅ result",
+        "active": true,
+        "tosidebar": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 570,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "debug-t3-err",
+        "type": "debug",
+        "z": "tab-tests",
+        "name": "❌ error",
+        "active": true,
+        "tosidebar": true,
+        "complete": "error",
+        "targetType": "msg",
+        "x": 570,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "cmt-test4",
+        "type": "comment",
+        "z": "tab-tests",
+        "name": "TEST 4 — error output (non-array input)",
+        "info": "",
+        "x": 195,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "inject-t4",
+        "type": "inject",
+        "z": "tab-tests",
+        "name": "Not an array ❌",
+        "props": [
+            { "p": "payload" },
+            { "p": "topic", "vt": "str" }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "",
+        "topic": "",
+        "payload": "{\"oops\": \"this is an object, not array\"}",
+        "payloadType": "json",
+        "x": 160,
+        "y": 580,
+        "wires": [["pipeline-t4"]]
+    },
+    {
+        "id": "pipeline-t4",
+        "type": "data-pipeline",
+        "z": "tab-tests",
+        "name": "will fail",
+        "steps": "[{\"type\":\"filter\",\"params\":{\"field\":\"x\",\"op\":\">\",\"value\":\"0\"}}]",
+        "x": 360,
+        "y": 580,
+        "wires": [["debug-t4-ok"], ["debug-t4-err"]]
+    },
+    {
+        "id": "debug-t4-ok",
+        "type": "debug",
+        "z": "tab-tests",
+        "name": "✅ result (should NOT trigger)",
+        "active": true,
+        "tosidebar": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 600,
+        "y": 560,
+        "wires": []
+    },
+    {
+        "id": "debug-t4-err",
+        "type": "debug",
+        "z": "tab-tests",
+        "name": "❌ error (SHOULD trigger)",
+        "active": true,
+        "tosidebar": true,
+        "complete": "error",
+        "targetType": "msg",
+        "x": 600,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "ab88cf15eb5f0f44",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "nr-contrib-data-pipeline": "1.0.0"
+        }
+    }
+]
