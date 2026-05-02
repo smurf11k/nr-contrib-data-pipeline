@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 # nr-contrib-data-pipeline
 
 A Node-RED node for transforming arrays using a visual pipeline of steps — no code required.
